@@ -84,3 +84,42 @@ fit %>%
 
 ```
 
+## Diagnostics - often done by getting residuals then looking at them
+## Assumptions are: should be mean zero and constant varianc
+
+In this example some of the assumptions aren't being met, but it's such a large sample size eventually everything is normally distributed anyway.
+
+```{r}
+modelr::add_residuals(nyc_airbnb, fit) %>% 
+  ggplot(aes(x = stars, y = resid)) +
+  geom_point()
+
+nyc_airbnb %>% 
+  modelr::add_residuals(fit) %>% 
+  ggplot(aes(x = borough, y = resid)) +
+  geom_violin() +
+  ylim(-250, 250)
+```
+
+## Hypothesis testing
+
+one coefficient (let's say `stars`).
+
+```{r}
+fit %>% 
+  broom::tidy()
+
+fit_null = lm(price ~ stars, data = nyc_airbnb)
+fit_alt = lm(price ~ stars + borough, data = nyc_airbnb) 
+# if you want to test these two against each other, an F test and get sums of squares 
+
+# short hand:
+
+anova(fit_null, fit_alt) %>% 
+  broom::tidy()
+
+# it's a small p-value you should probably put borough in your model
+
+```
+
+

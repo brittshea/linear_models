@@ -122,4 +122,40 @@ anova(fit_null, fit_alt) %>%
 
 ```
 
+## Room type by borough
+Is there an effect of room type, and then does the effect change borough to borough? Maybe in Manhattan it costs an extra $20 for a specific room type in one borough versus another.
+
+Interactions ...?
+If want to do testing, have to do a model with interactions
+
+```{r}
+fit = 
+  nyc_airbnb %>% 
+  lm(price ~ stars + borough * room_type, data = .)
+
+fit %>% 
+  broom::tidy()
+```
+
+But for exploratory analysis we can just fit different linear models. DF for each borough, and for each fit a linear model.
+
+So...can we fit models by borough...?
+
+```{r}
+nyc_airbnb %>% 
+  nest(df = -borough) %>% 
+  mutate(
+    models = map(.x = df, ~lm(price ~ stars + room_type, data = .x)), results = map(models, broom::tidy)) %>% 
+  select(borough, results) %>% 
+  unnest(results)
+```
+
+Quick double check ...?
+
+```{r}
+nyc_airbnb %>%
+  filter(borough == "Bronx") %>% 
+  lm(price ~ stars + room_type, data = .) %>% 
+  broom::tidy()
+```
 

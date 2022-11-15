@@ -158,4 +158,3 @@ nyc_airbnb %>%
   lm(price ~ stars + room_type, data = .) %>% 
   broom::tidy()
 ```
-

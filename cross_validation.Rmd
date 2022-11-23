@@ -1,0 +1,114 @@
+---
+title: "cross_validation"
+author: "Brittany Shea"
+date: "`r Sys.Date()`"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(mgcv)
+library(modelr)
+
+library(viridis)
+
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  fig.width = 8,
+  fig.height = 6,
+  out.width = "90%"
+)
+
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+
+theme_set(theme_minimal() + theme(legend.position = "bottom"))
+```
+
+## Step one
+
+Cross validation by hand simulation
+
+```{r}
+nonlin_df = 
+  tibble(
+    id = 1:100,
+    x = runif(100, 0, 1),
+    y = 1 - 10 * (x - .3) ^ 2 + rnorm(100, 0, .3)
+  )
+
+nonlin_df %>% 
+  ggplot(aes(x = x, y = y)) + 
+  geom_point()
+```
+
+Let's get this by hand - training & testing datasets
+
+```{r}
+train_df = sample_n(nonlin_df, 80)
+test_df = anti_join(nonlin_df, train_df, by = "id")
+```
+
+```{r}
+train_df %>% 
+  ggplot(aes(x = x, y = y)) +
+  geom_point() +
+  geom_point(data = test_df, color = "red")
+```
+
+Let's try to fit three models.
+
+```{r}
+linear_mod = lm(y ~ x, data = train_df) #simple linear regression of y versus x
+
+smooth_mod = mgcv::gam(y ~ s(x), data = train_df) #smooth fit between y and x, treating x as something with nonlinearity
+
+wiggly_mod = mgcv::gam(y ~ s(x, k = 30), sp = 10e-6, data = train_df) # make sure gam is giving us something too wiggly
+```
+
+Let's see the results -- add column with predictions 
+
+```{r}
+train_df %>% 
+  add_predictions(wiggly_mod) %>% 
+  ggplot(aes(x = x, y = y)) +
+  geom_point() +
+  geom_line(aes(y = pred), color = "red")
+
+```
+
+Let's make predictions and compute RMSEs: to see which model is making best prediction on dataset, do cross validation
+
+```{r}
+test_df %>% add_predictions(linear_mod)
+
+# training/testing split
+# lower is better -- lower prediction error means predictions were more accurate
+rmse(linear_mod, test_df)
+rmse(smooth_mod, test_df)
+rmse(wiggly_mod, test_df)
+```
+
+## Can we iterate...?
+
+```{r}
+cv_df = 
+  crossv_mc(nonlin_df, 100) %>% # convert splits 
+  mutate( #convert all to tibbles
+    train = map(train, as_tibble),
+    test = map(test, as_tibble),
+  ) %>% 
+  mutate(
+    linear_fits = map(.x = train, ~lm(y ~ x, data = .x)) #fit linear model for all the dataframes in train column each time
+  )
+
+# cv_df %>% pull(train) %>% .[[2]] %>% as_tibble
+```
+
+
